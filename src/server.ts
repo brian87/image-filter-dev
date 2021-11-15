@@ -10,6 +10,9 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
   // Set the network port
   const port = process.env.PORT || 8082;
   
+  // Supported image exttensions from https://www.npmjs.com/package/jimp
+  const jimpSuportedList: string[] = ['jpg', 'png', 'bmp', 'tiff', 'gif'];
+
   // Use the body parser middleware for post requests
   app.use(bodyParser.json());
 
@@ -30,17 +33,37 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
   /**************************************************************************** */
 
   //! END @TODO1
-  
-  // Root Endpoint
-  // Displays a simple message to the user
-  app.get( "/", async ( req, res ) => {
-    res.send("try GET /filteredimage?image_url={{}}")
-  } );
-  
+  app.get("/filteredimage/", async (req, res) => {
+    let { image_url } = req.query;
 
-  // Start the Server
-  app.listen( port, () => {
-      console.log( `server running http://localhost:${ port }` );
-      console.log( `press CTRL+C to stop server` );
-  } );
+    // Check if image_URL is valid
+    if(! image_url){
+      return res.status(400).send("image_url is required");
+    }
+   
+    // Filter the image and send it in the response and then delete it
+    try {
+      const filteredpath = await filterImageFromURL(image_url)
+
+      await res.status(200).sendFile(filteredpath, {}, (err) => {
+        if (err) { return res.status(422).send(`Unable to process the image`); }
+        deleteLocalFiles([filteredpath])
+      })
+    } catch (err) {
+      res.status(422).send(`Unable to process the image, Set a correct image url`);
+    }
+});
+
+// Root Endpoint
+// Displays a simple message to the user
+app.get( "/", async ( req, res ) => {
+  res.send("try GET /filteredimage?image_url={{}}")
+} );
+
+
+// Start the Server
+app.listen( port, () => {
+    console.log( `server running http://localhost:${ port }` );
+    console.log( `press CTRL+C to stop server` );
+} );
 })();
